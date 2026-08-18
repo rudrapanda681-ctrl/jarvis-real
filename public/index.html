@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#050914">
+<title>JARVIS • Real Voice AI</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+ margin:0;
+ background:radial-gradient(circle at 50% -10%,#173b6b,#050914 55%);
+ color:#eef7ff;
+ font-family:Arial,system-ui,sans-serif;
+ min-height:100vh;
+}
+
+.app{
+ max-width:1000px;
+ margin:auto;
+ min-height:100vh;
+}
+
+header{
+ padding:20px;
+ background:linear-gradient(135deg,#07111f,#163a70);
+ border-radius:0 0 25px 25px;
+}
+
+.brand{
+ font-size:20px;
+ font-weight:900;
+ letter-spacing:3px;
+}
+
+.brand span{color:#4dd7ff}
+
+.sub{
+ color:#9eacc1;
+ font-size:12px;
+ margin-top:5px;
+}
+
+main{
+ text-align:center;
+ padding:25px 15px;
+}
+
+.status{
+ color:#4dd7ff;
+ font-size:12px;
+ font-weight:bold;
+ letter-spacing:2px;
+}
+
+h1{
+ font-size:32px;
+ margin:15px 0 5px;
+}
+
+.muted{
+ color:#8fa1bb;
+ font-size:13px;
+}
+
+.orb{
+ width:210px;
+ height:210px;
+ border-radius:50%;
+ margin:45px auto 30px;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ cursor:pointer;
+ background:radial-gradient(circle,#164277,#07172c 55%,#050914 75%);
+ box-shadow:0 0 45px #4dd7ff55,0 0 120px #4dd7ff22;
+ transition:.3s;
+}
+
+.orb.live{
+ box-shadow:0 0 70px #4dd7ffaa,0 0 150px #4dd7ff55;
+}
+
+.core{
+ width:105px;
+ height:105px;
+ border-radius:50%;
+ border:1px solid #4dd7ff66;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ text-align:center;
+ font-size:12px;
+ font-weight:bold;
+ letter-spacing:2px;
+ background:#061226;
+}
+
+button{
+ border:1px solid #263b5c;
+ background:#0d1b2d;
+ color:white;
+ padding:12px 18px;
+ border-radius:12px;
+ font-weight:bold;
+ cursor:pointer;
+ margin:5px;
+}
+
+.primary{
+ background:linear-gradient(135deg,#2766e8,#6174ff);
+ border-color:#6174ff;
+}
+
+.transcript{
+ max-width:700px;
+ margin:20px auto;
+ font-size:17px;
+ line-height:1.5;
+ min-height:55px;
+}
+
+.log{
+ max-width:750px;
+ margin:25px auto;
+ padding:15px;
+ text-align:left;
+ background:#091421;
+ border:1px solid #20304a;
+ border-radius:15px;
+ min-height:80px;
+}
+
+.msg{
+ padding:9px 0;
+ border-bottom:1px solid #ffffff10;
+}
+
+.you{color:#aebed5}
+.jarvis{color:#dffaff}
+
+@media(max-width:600px){
+ h1{font-size:25px}
+ .orb{width:175px;height:175px}
+ .core{width:90px;height:90px}
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<header>
+ <div class="brand"><span>J</span>ARVIS • REAL VOICE AI</div>
+ <div class="sub">Hindi • English • Gujarati • Natural Voice Conversation</div>
+</header>
+
+<main>
+
+<div class="status" id="status">
+OFFLINE • READY
+</div>
+
+<h1>Your Personal AI Assistant</h1>
+
+<div class="muted">
+Speak naturally. JARVIS will listen and respond.
+</div>
+
+<div class="orb" id="orb" onclick="toggleJarvis()">
+ <div class="core" id="core">
+  TAP TO<br>CONNECT
+ </div>
+</div>
+
+<div class="transcript" id="transcript">
+“JARVIS is ready.”
+</div>
+
+<button class="primary" id="connectBtn" onclick="toggleJarvis()">
+🎙 Connect JARVIS
+</button>
+
+<button onclick="sendTextPrompt()">
+⌨ Text
+</button>
+
+<div class="log" id="log">
+ <div class="muted">
+ Conversation will appear here.
+ </div>
+</div>
+
+</main>
+</div>
+
+<script>
+
+let pc=null;
+let dc=null;
+let audio=null;
+let stream=null;
+let connected=false;
+
+function logMessage(who,text){
+
+ if(!text)return;
+
+ const box=document.getElementById("log");
+
+ const div=document.createElement("div");
+
+ div.className="msg "+(who==="You"?"you":"jarvis");
+
+ div.textContent=who+": "+text;
+
+ box.appendChild(div);
+
+ box.scrollTop=box.scrollHeight;
+
+ document.getElementById("transcript").textContent=
+ "“"+text+"”";
+}
+
+async function toggleJarvis(){
+
+ if(connected){
+  disconnect();
+ }else{
+  await connect();
+ }
+
+}
+
+async function connect(){
+
+ try{
+
+  document.getElementById("status").textContent=
+  "CONNECTING • PLEASE WAIT";
+
+  document.getElementById("core").textContent=
+  "CONNECTING";
+
+  stream=await navigator.mediaDevices.getUserMedia({
+   audio:true
+  });
+
+  pc=new RTCPeerConnection();
+
+  audio=document.createElement("audio");
+  audio.autoplay=true;
+  document.body.appendChild(audio);
+
+  pc.ontrack=function(event){
+   audio.srcObject=event.streams[0];
+  };
+
+  stream.getTracks().forEach(track=>{
+   pc.addTrack(track,stream);
+  });
+
+  dc=pc.createDataChannel("oai-events");
+
+  dc.onopen=function(){
+
+   connected=true;
+
+   document.getElementById("status").textContent=
+   "JARVIS ONLINE • LISTENING";
+
+   document.getElementById("core").textContent=
+   "LISTENING";
+
+   document.getElementById("orb").classList.add("live");
+
+   document.getElementById("connectBtn").textContent=
+   "⏹ Disconnect";
+
+   sendSessionUpdate();
+  };
+
+  dc.onmessage=function(event){
+
+   try{
+
+    const data=JSON.parse(event.data);
+
+    handleEvent(data);
+
+   }catch(e){
+
+    console.log(e);
+
+   }
+
+  };
+
+  const offer=await pc.createOffer();
+
+  await pc.setLocalDescription(offer);
+
+  const response=await fetch(
+   "/api/realtime",
+   {
+    method:"POST",
+    headers:{
+     "Content-Type":"application/sdp"
+    },
+    body:offer.sdp
+   }
+  );
+
+  if(!response.ok){
+
+   throw new Error(
+    await response.text()
+   );
+
+  }
+
+  const answer=await response.text();
+
+  await pc.setRemoteDescription({
+   type:"answer",
+   sdp:answer
+  });
+
+ }catch(error){
+
+  console.error(error);
+
+  document.getElementById("status").textContent=
+  "CONNECTION ERROR";
+
+  document.getElementById("core").textContent=
+  "ERROR";
+
+  document.getElementById("transcript").textContent=
+  "“"+error.message+"”";
+
+  disconnect(false);
+ }
+
+}
+
+function sendSessionUpdate(){
+
+ if(!dc || dc.readyState!=="open")return;
+
+ dc.send(JSON.stringify({
+
+  type:"session.update",
+
+  session:{
+
+   instructions:`
+You are JARVIS, the user's personal AI assistant.
+
+Speak naturally like a highly intelligent human assistant.
+
+The user can speak Hindi, English, Gujarati,
+Hinglish, or mixed languages.
+
+Automatically understand the language being used
+and respond naturally in the same language.
+
+The user is a Financial Advisor and Sales professional.
+
+Help with:
+- Daily tasks
+- Goals
+- Career development
+- Financial concepts
+- Sales
+- Learning
+- Productivity
+- Calculations
+- General conversation
+
+Be friendly, intelligent and concise.
+
+Do not sound robotic.
+
+Do not claim that you completed an action
+unless the application actually provides that action.
+
+The user wants JARVIS to feel like a natural
+all-round personal assistant.
+`,
+
+   audio:{
+    input:{
+     turn_detection:{
+      type:"semantic_vad",
+      create_response:true,
+      interrupt_response:true
+     }
+    },
+
+    output:{
+     voice:"marin"
+    }
+   }
+
+  }
+
+ }));
+
+}
+
+function handleEvent(event){
+
+ if(
+  event.type===
+  "conversation.item.input_audio_transcription.completed"
+ ){
+
+  logMessage(
+   "You",
+   event.transcript
+  );
+
+ }
+
+ if(
+  event.type===
+  "response.audio_transcript.done"
+ ){
+
+  logMessage(
+   "JARVIS",
+   event.transcript
+  );
+
+ }
+
+ if(
+  event.type===
+  "output_audio_buffer.started"
+ ){
+
+  document.getElementById("status").textContent=
+  "JARVIS SPEAKING";
+
+ }
+
+ if(
+  event.type===
+  "output_audio_buffer.stopped"
+ ){
+
+  document.getElementById("status").textContent=
+  "JARVIS ONLINE • LISTENING";
+
+ }
+
+ if(event.type==="error"){
+
+  console.error(event);
+
+  document.getElementById("transcript").textContent=
+  "“JARVIS error occurred.”";
+
+ }
+
+}
+
+function sendTextPrompt(){
+
+ if(!dc || dc.readyState!=="open"){
+
+  alert("First connect JARVIS.");
+
+  return;
+
+ }
+
+ const text=prompt(
+  "What do you want to say to JARVIS?"
+ );
+
+ if(!text)return;
+
+ logMessage("You",text);
+
+ dc.send(JSON.stringify({
+
+  type:"conversation.item.create",
+
+  item:{
+   type:"message",
+   role:"user",
+
+   content:[
+    {
+     type:"input_text",
+     text:text
+    }
+   ]
+  }
+
+ }));
+
+ dc.send(JSON.stringify({
+  type:"response.create",
+  response:{
+   modalities:["audio","text"]
+  }
+ }));
+
+}
+
+function disconnect(update=true){
+
+ if(dc)dc.close();
+
+ if(pc)pc.close();
+
+ if(stream){
+
+  stream.getTracks().forEach(
+   track=>track.stop()
+  );
+
+ }
+
+ if(audio){
+
+  audio.srcObject=null;
+
+  audio.remove();
+
+ }
+
+ pc=null;
+ dc=null;
+ stream=null;
+ audio=null;
+
+ connected=false;
+
+ document.getElementById("orb")
+ .classList.remove("live");
+
+ document.getElementById("core").innerHTML=
+ "TAP TO<br>CONNECT";
+
+ document.getElementById("connectBtn").textContent=
+ "🎙 Connect JARVIS";
+
+ if(update){
+
+  document.getElementById("status").textContent=
+  "OFFLINE • READY";
+
+ }
+
+}
+
+</script>
+
+</body>
+</html>
