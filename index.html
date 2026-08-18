@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#050914"><title>JARVIS • Real Voice AI</title>
+<style>
+:root{--bg:#050914;--p:#0a1424;--p2:#0e1b2e;--line:#20304a;--txt:#eef7ff;--muted:#8fa1bb;--cyan:#4dd7ff;--blue:#607cff;--green:#43e6a5}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -10%,#1b3d70 0,#050914 48%);color:var(--txt);font-family:Inter,system-ui,sans-serif}.app{max-width:1150px;margin:auto;min-height:100vh}
+header{padding:18px 20px;background:linear-gradient(135deg,#07111f,#163a70);border-radius:0 0 28px 28px}.brand{font-weight:950;letter-spacing:.18em}.brand b{color:var(--cyan)}.sub{font-size:12px;color:#aebbd0;margin-top:3px}
+main{padding:18px}.hero{text-align:center}.status{color:var(--cyan);font-size:11px;letter-spacing:.15em;font-weight:900;margin-top:6px}.hero h1{font-size:30px;margin:10px 0 4px}.orb{width:210px;height:210px;border-radius:50%;margin:30px auto;display:grid;place-items:center;cursor:pointer;background:radial-gradient(circle,#153b70 0,#08172d 48%,#050914 72%);box-shadow:0 0 45px #4dd7ff35,0 0 120px #4dd7ff18;position:relative;transition:.25s}.orb:before,.orb:after{content:"";position:absolute;border:1px solid #4dd7ff30;border-radius:50%}.orb:before{inset:-12px;animation:p 2.5s infinite}.orb:after{inset:-27px;border-color:#607cff20;animation:p 3.2s infinite}.orb.live{box-shadow:0 0 65px #4dd7ff99,0 0 150px #4dd7ff44}.orb.speaking{box-shadow:0 0 65px #43e6a599,0 0 150px #43e6a544}.core{width:108px;height:108px;border:1px solid #4dd7ff55;border-radius:50%;display:grid;place-items:center;font-size:11px;letter-spacing:.15em;font-weight:900;background:#061226aa}@keyframes p{50%{transform:scale(1.08);opacity:.45}}
+.transcript{max-width:760px;margin:auto;min-height:55px;font-size:17px;line-height:1.55}.muted{color:var(--muted);font-size:12px}.controls{display:flex;justify-content:center;gap:9px;margin:16px}.btn{padding:11px 15px;border-radius:11px;border:1px solid var(--line);background:var(--p2);color:#fff;font-weight:850;cursor:pointer}.primary{background:linear-gradient(135deg,#2864e8,#5f73ff);border-color:#5f73ff}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:850px;margin:25px auto}.card{background:#0b1627;border:1px solid var(--line);border-radius:14px;padding:14px;text-align:left}.card b{font-size:20px}.log{max-width:850px;margin:18px auto;text-align:left;background:#091421;border:1px solid var(--line);border-radius:15px;padding:14px;min-height:70px}.msg{padding:7px 0;border-bottom:1px solid #ffffff08}.you{color:#b7c6dc}.ai{color:#dffaff}.error{color:#ff8796}
+@media(max-width:600px){main{padding:10px}.orb{width:175px;height:175px}.core{width:92px;height:92px}.hero h1{font-size:24px}.grid{grid-template-columns:1fr 1fr}.controls{flex-wrap:wrap}}
+</style></head>
+<body><div class="app">
+<header><div class="brand"><b>J</b>ARVIS • REAL VOICE AI</div><div class="sub">Hindi • English • Gujarati • Natural speech-to-speech</div></header>
+<main>
+<section class="hero">
+<div class="status" id="status">OFFLINE • READY TO CONNECT</div>
+<h1>Your personal AI assistant.</h1>
+<div class="muted">Tap once, speak naturally, and keep the conversation going.</div>
+<div class="orb" id="orb" onclick="toggle()"><div class="core" id="core">TAP TO<br>CONNECT</div></div>
+<div class="transcript" id="transcript">“JARVIS is ready. Connect to start a real voice conversation.”</div>
+<div class="controls"><button class="btn primary" id="connectBtn" onclick="toggle()">🎙 Connect JARVIS</button><button class="btn" onclick="testText()">⌨ Send Text</button></div>
+<div class="muted">Realtime speech-to-speech. JARVIS can be interrupted while speaking.</div>
+</section>
+<div class="grid"><div class="card"><b>🇮🇳 3 Languages</b><div class="muted">Hindi • English • Gujarati + mixed speech</div></div><div class="card"><b>🎙 Realtime</b><div class="muted">Natural audio conversation with turn detection</div></div><div class="card"><b>🧠 JARVIS Persona</b><div class="muted">Personal assistant + career + sales + learning</div></div></div>
+<div class="log" id="log"><div class="muted">Conversation transcript will appear here when connected.</div></div>
+</main></div>
+<script>
+let pc=null,dc=null,audioEl=null,connected=false;
+const $=id=>document.getElementById(id);
+function addLog(who,text){if(!text)return;const d=document.createElement("div");d.className="msg "+(who==="You"?"you":"ai");d.textContent=who+": "+text;$("log").appendChild(d);$("log").scrollTop=$("log").scrollHeight;$("transcript").textContent="“"+text+"”"}
+async function toggle(){if(connected){disconnect();return}await connect()}
+async function connect(){
+ try{
+  $("status").textContent="CONNECTING • SECURE SESSION";
+  $("core").textContent="CONNECTING";
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  pc=new RTCPeerConnection();
+  audioEl=document.createElement("audio");audioEl.autoplay=true;document.body.appendChild(audioEl);
+  pc.ontrack=e=>{audioEl.srcObject=e.streams[0];$("orb").classList.add("speaking");setTimeout(()=>$("orb").classList.remove("speaking"),700)};
+  stream.getTracks().forEach(t=>pc.addTrack(t,stream.getTracks().find(x=>x===t)));
+  dc=pc.createDataChannel("oai-events");
+  dc.onmessage=e=>handleEvent(JSON.parse(e.data));
+  dc.onopen=()=>{connected=true;$("status").textContent="JARVIS ONLINE • LISTENING";$("core").textContent="LISTENING";$("orb").classList.add("live");$("connectBtn").textContent="⏹ Disconnect";sendInstructions()};
+  const offer=await pc.createOffer();await pc.setLocalDescription(offer);
+  const r=await fetch("/api/realtime",{method:"POST",headers:{"Content-Type":"application/sdp"},body:offer.sdp});
+  if(!r.ok)throw new Error(await r.text());
+  await pc.setRemoteDescription({type:"answer",sdp:await r.text()});
+ }catch(e){console.error(e);$("status").textContent="CONNECTION ERROR";$("core").textContent="ERROR";$("transcript").textContent="“"+(e.message||"Could not connect.")+"”";disconnect(false)}
+}
+function sendInstructions(){
+ if(!dc||dc.readyState!=="open")return;
+ dc.send(JSON.stringify({type:"session.update",session:{
+  instructions:`You are JARVIS, a highly capable personal AI assistant. Speak naturally, warmly and confidently. The user speaks Hindi, English, Gujarati and Hinglish. Detect the language automatically and reply naturally in the same style.
+The user is a Financial Advisor and Sales professional. Help with daily life, planning, goals, learning, sales, financial concepts, productivity and research. Never pretend an action was completed unless a connected tool actually did it.
+Keep normal replies concise. Ask clarifying questions when needed. You can be friendly and conversational, not robotic.`,
+  audio:{input:{turn_detection:{type:"semantic_vad","create_response":true,"interrupt_response":true}},output:{voice:"marin"}}
+ }}));
+}
+function handleEvent(ev){
+ if(ev.type==="conversation.item.input_audio_transcription.completed")addLog("You",ev.transcript);
+ if(ev.type==="response.audio_transcript.done"){addLog("JARVIS",ev.transcript);$("status").textContent="JARVIS ONLINE • LISTENING";$("orb").classList.remove("speaking")}
+ if(ev.type==="output_audio_buffer.started")$("orb").classList.add("speaking");
+ if(ev.type==="output_audio_buffer.stopped")$("orb").classList.remove("speaking");
+ if(ev.type==="error"){console.error(ev);$("transcript").textContent="“JARVIS error: "+(ev.error?.message||"unknown")+"”"}
+}
+function sendText(text){if(!dc||dc.readyState!=="open"){alert("Connect JARVIS first.");return}addLog("You",text);dc.send(JSON.stringify({type:"conversation.item.create",item:{type:"message",role:"user",content:[{type:"input_text",text}]}}));dc.send(JSON.stringify({type:"response.create",response:{modalities:["audio","text"]}}))}
+function testText(){const t=prompt("What do you want to say to JARVIS?");if(t)sendText(t)}
+function disconnect(update=true){if(dc)dc.close();if(pc)pc.close();if(audioEl){audioEl.srcObject=null;audioEl.remove()}pc=null;dc=null;connected=false;$("orb").classList.remove("live","speaking");$("core").innerHTML="TAP TO<br>CONNECT";$("connectBtn").textContent="🎙 Connect JARVIS";if(update)$("status").textContent="OFFLINE • READY TO CONNECT"}
+</script></body></html>
